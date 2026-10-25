@@ -1,16 +1,18 @@
-const {readFileSync} = require('fs');
-
-const {copySync} = require('cpx');
-const watch = require('node-watch');
-
-const concatSource = require('./concat.js');
-
-JSON.parse(readFileSync('./modules.json').toString())
-    .map(name=>({name, target:`./js/${name}`}))
-    .forEach(({name,target})=>{
-        watch(target, ()=>{
-            concatSource(name);
-            copySync(`./dist/${name}.js`, './game/js/');
-            console.log(`${target} changed. copy ${name}.js`);
-        });
+import {watch, mkdirSync, cpSync} from 'node:fs';
+import build from './concat.js';
+import {readLayout} from './tools/layout.js';
+mkdirSync('game/js', {recursive: true});
+let timer;
+for (const {directory} of readLayout().groups) {
+    watch(directory, {recursive: true}, () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+            try {
+                build();
+                cpSync('dist', 'game/js', {recursive: true});
+                console.log('Updated engine modules');
+            } catch (error) { console.error(error.message); }
+        }, 75);
     });
+}
+console.log('Watching engine sources. Ctrl+C to stop.');

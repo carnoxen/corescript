@@ -1,29 +1,19 @@
-const files = [
-    'js/libs/fpsmeter.js',
-    'js/libs/iphone-inline-video.browser.js',
-    'js/libs/lz-string.js',
-    'js/libs/pixi.js',
-    'js/libs/pixi-picture.js',
-    'js/libs/pixi-tilemap.js',
-    'js/rpg_core.js',
-    'js/rpg_managers.js',
-    'js/rpg_objects.js',
-    'js/rpg_scenes.js',
-    'js/rpg_sprites.js',
-    'js/rpg_windows.js',
-];
+import fs from 'node:fs';
+import path from 'node:path';
+import crc32 from '../tools/crc32.js';
+import {importMap} from '../tools/layout.js';
+import {isMain} from '../tools/paths.js';
 
-const CRC32 = require('crc-32');
-const cpx = require('cpx');
-const fs = require('fs');
-const path = require('path');
+export default function generateCRC() {
+    const crc = Object.fromEntries(Object.values(importMap.imports).map(target => {
+        const file = target.slice(2);
+        return [file, crc32(fs.readFileSync(path.join('corescript', file))) | 0];
+    }));
+    const plugin = fs.readFileSync('healthcheck/HealthCheck.js', 'utf8').replace('__CRC__', JSON.stringify(crc));
+    fs.mkdirSync('corescript/js/plugins', {recursive: true});
+    const previous = 'corescript/js/plugins/Debug_HealthCheck.js';
+    if (fs.existsSync(previous)) fs.unlinkSync(previous);
+    fs.writeFileSync('corescript/js/plugins/HealthCheck.js', plugin);
+}
 
-let crc = {};
-files.forEach(file=>{
-    const content = fs.readFileSync(path.join('corescript', file)).toString();
-    crc[file] = CRC32.bstr(content);
-});
-
-const plugin = fs.readFileSync('healthcheck/Debug_HealthCheck.js').toString().replace('__CRC__', JSON.stringify(crc));
-fs.writeFileSync('corescript/js/plugins/Debug_HealthCheck.js', plugin);
-
+if (isMain(import.meta.url)) generateCRC();

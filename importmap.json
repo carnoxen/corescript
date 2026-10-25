@@ -1,0 +1,12 @@
+{
+  "imports": {
+    "engine": "./js/engine.js",
+    "core": "./js/core.js",
+    "managers": "./js/managers.js",
+    "objects": "./js/objects.js",
+    "scenes": "./js/scenes.js",
+    "sprites": "./js/sprites.js",
+    "windows": "./js/windows.js",
+    "sets": "./js/sprites/sets.js"
+  }
+}

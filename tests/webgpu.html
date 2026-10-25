@@ -1,0 +1,53 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>WebGPU renderer verification</title>
+<style>body { background: #18202b; color: white; font: 16px monospace } canvas { image-rendering: pixelated; width: 512px }</style>
+<h1>WebGPU renderer verification</h1>
+<canvas id="view" width="128" height="128"></canvas>
+<pre id="result">RUNNING</pre>
+<script type="importmap">{"imports":{"engine":"../dist/engine.js"}}</script>
+<script type="module">
+import {core} from 'engine';
+const {WebGPURenderer, Graphics, Stage, Bitmap, Sprite, TilingSprite, Render2D, WindowLayer, Window} = core;
+(async () => {
+    const result = document.querySelector('#result');
+    try {
+        const renderer = await WebGPURenderer.create(document.querySelector('#view'), 128, 128);
+        Graphics._renderer = renderer; Graphics._width = 128; Graphics._height = 128;
+        const stage = new Stage();
+        const bitmap = new Bitmap(16, 16); bitmap.fillAll('#ff0000');
+        const red = new Sprite(bitmap); red.move(8, 8); stage.addChild(red);
+        const green = new Sprite(bitmap); green.move(32, 8); green.setColorTone([-255, 255, 0, 0]); stage.addChild(green);
+        const blue = new Sprite(bitmap); blue.move(56, 8); blue.setBlendColor([0, 0, 255, 255]); stage.addChild(blue);
+        const tiling = new TilingSprite(bitmap); tiling.move(8, 32, 32, 16); tiling.origin.set(3, 5); stage.addChild(tiling);
+        const surface = new Render2D.TileSurface(32, 16); surface.bltImage(bitmap, 0, 0, 16, 16, 16, 0);
+        const tiles = new Sprite(surface); tiles.move(48, 32); stage.addChild(tiles);
+        const layer = new WindowLayer(); layer.move(0, 0, 128, 128); stage.addChild(layer);
+        const skin = new Bitmap(192, 192); skin.fillAll('#ffffff');
+        const window = new Window(); window.move(8, 64, 48, 48); window.windowskin = skin;
+        layer.addChild(window);
+        renderer.render(stage);
+        const pixels = await renderer.readPixels();
+        const checks = [];
+        function pixel(name, x, y, rgb) {
+            const actual = [...pixels.slice((y * 128 + x) * 4, (y * 128 + x) * 4 + 3)];
+            if (actual.some((value, i) => Math.abs(value - rgb[i]) > 2)) throw new Error(`${name}: expected ${rgb}; got ${actual}`);
+            checks.push(name);
+        }
+        pixel('textured sprite', 12, 12, [255, 0, 0]);
+        pixel('GPU color tone', 36, 12, [0, 255, 0]);
+        pixel('GPU blend color', 60, 12, [0, 0, 255]);
+        pixel('tiling scroll', 12, 36, [255, 0, 0]);
+        pixel('retained GPU tiles', 68, 36, [255, 0, 0]);
+        pixel('empty tile cell', 52, 36, [0, 0, 0]);
+        pixel('window skin', 24, 80, [255, 255, 255]);
+        await renderer.device.queue.onSubmittedWorkDone();
+        if (renderer.error) throw renderer.error;
+        result.textContent = `PASS: ${checks.join(', ')}`;
+        document.documentElement.dataset.status = 'pass';
+    } catch (error) {
+        result.textContent = `FAIL: ${error.stack}`;
+        document.documentElement.dataset.status = 'fail';
+    }
+})();
+</script>

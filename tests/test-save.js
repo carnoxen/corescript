@@ -1,7 +1,5 @@
-let fs = require('fs');
-let assert = require('assert');
-
-eval(fs.readFileSync('./js/rpg_core/JsonEx.js').toString());
+import assert from 'node:assert/strict';
+import {JsonEx} from '../js/core/JsonEx.js';
 
 (function duplicatedArray(){
     let array = [1, 2, 3];
